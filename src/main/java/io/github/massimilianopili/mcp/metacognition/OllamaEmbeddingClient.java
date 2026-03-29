@@ -21,14 +21,17 @@ public class OllamaEmbeddingClient {
     private final String baseUrl;
     private final String model;
     private final int expectedDimensions;
+    private final int requestTimeoutSec;
     private final HttpClient httpClient;
 
-    public OllamaEmbeddingClient(String baseUrl, String model, int expectedDimensions) {
+    public OllamaEmbeddingClient(String baseUrl, String model, int expectedDimensions,
+                                 int connectTimeoutSec, int requestTimeoutSec) {
         this.baseUrl = baseUrl;
         this.model = model;
         this.expectedDimensions = expectedDimensions;
+        this.requestTimeoutSec = requestTimeoutSec;
         this.httpClient = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofSeconds(10))
+                .connectTimeout(Duration.ofSeconds(connectTimeoutSec))
                 .build();
     }
 
@@ -43,7 +46,7 @@ public class OllamaEmbeddingClient {
                 .uri(URI.create(baseUrl + "/api/embed"))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
-                .timeout(Duration.ofSeconds(30))
+                .timeout(Duration.ofSeconds(requestTimeoutSec))
                 .build();
 
         HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());

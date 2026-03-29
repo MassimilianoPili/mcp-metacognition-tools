@@ -17,8 +17,10 @@ public class MetacognitionConfig {
         if (props.getDbCredential() != null && !props.getDbCredential().isBlank()) {
             ds.setPassword(props.getDbCredential());
         }
-        ds.setMaximumPoolSize(2);
-        ds.setMinimumIdle(0);
+        ds.setMaximumPoolSize(props.getDbPoolSize());
+        ds.setMinimumIdle(props.getDbMinimumIdle());
+        ds.setConnectionTimeout(props.getDbConnectionTimeout());
+        ds.setLeakDetectionThreshold(props.getDbLeakDetectionThreshold());
         ds.setPoolName("metacognition-pool");
         return ds;
     }
@@ -28,7 +30,9 @@ public class MetacognitionConfig {
         return new OllamaEmbeddingClient(
                 props.getOllamaBaseUrl(),
                 props.getOllamaModel(),
-                props.getEmbeddingDimensions()
+                props.getEmbeddingDimensions(),
+                props.getOllamaConnectTimeoutSec(),
+                props.getOllamaRequestTimeoutSec()
         );
     }
 }

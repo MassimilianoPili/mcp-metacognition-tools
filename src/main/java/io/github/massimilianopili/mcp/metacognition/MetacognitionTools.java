@@ -39,12 +39,12 @@ public class MetacognitionTools {
             Class<?> poolConfigClass = Class.forName("redis.clients.jedis.JedisPoolConfig");
             Class<?> poolClass = Class.forName("redis.clients.jedis.JedisPool");
             Object poolConfig = poolConfigClass.getDeclaredConstructor().newInstance();
-            poolConfigClass.getMethod("setMaxTotal", int.class).invoke(poolConfig, 2);
-            poolConfigClass.getMethod("setMaxIdle", int.class).invoke(poolConfig, 1);
+            poolConfigClass.getMethod("setMaxTotal", int.class).invoke(poolConfig, props.getRedisPoolMaxTotal());
+            poolConfigClass.getMethod("setMaxIdle", int.class).invoke(poolConfig, props.getRedisPoolMaxIdle());
             this.jedisPool = poolClass.getDeclaredConstructor(
                     Class.forName("org.apache.commons.pool2.impl.GenericObjectPoolConfig"),
                     String.class, int.class, int.class, String.class, int.class
-            ).newInstance(poolConfig, props.getRedisHost(), props.getRedisPort(), 2000, null, props.getRedisDb());
+            ).newInstance(poolConfig, props.getRedisHost(), props.getRedisPort(), props.getRedisTimeoutMs(), null, props.getRedisDb());
             log.info("Metacognition: Redis cache enabled ({}:{}/{})", props.getRedisHost(), props.getRedisPort(), props.getRedisDb());
         } catch (Exception e) {
             log.info("Metacognition: Redis unavailable, caching disabled: {}", e.getMessage());
@@ -153,7 +153,7 @@ public class MetacognitionTools {
 
             // GP prediction per agent type
             GaussianProcessEngine gp = new GaussianProcessEngine(
-                    props.getGpLengthScale(), props.getGpNoiseVariance());
+                    props.getGpLengthScale(), props.getGpNoiseVariance(), props.getGpMinSigma2());
 
             List<Map<String, Object>> predictions = new ArrayList<>();
             String bestAgent = null;
@@ -163,7 +163,7 @@ public class MetacognitionTools {
                 TrainingData td = loadTrainingData(agent);
                 double[] posterior;
                 if (td.embeddings.length == 0) {
-                    posterior = new double[]{0.5, 1.0};
+                    posterior = new double[]{props.getGpDefaultMu(), props.getGpDefaultSigma2()};
                 } else {
                     posterior = gp.predict(td.embeddings, td.outcomes, queryEmb);
                 }
@@ -185,7 +185,8 @@ public class MetacognitionTools {
 
             predictions.sort((a, b) -> Double.compare((double) b.get("mu"), (double) a.get("mu")));
 
-            String confidence = bestMu > 0.7 ? "high" : bestMu > 0.4 ? "medium" : "low";
+            String confidence = bestMu > props.getConfidenceHighThreshold() ? "high"
+                    : bestMu > props.getConfidenceMediumThreshold() ? "medium" : "low";
             result.put("recommended", bestAgent);
             result.put("predictions", predictions);
             result.put("confidence", confidence);
@@ -285,7 +286,7 @@ public class MetacognitionTools {
                 // Historical stats (7 days, excluding current session)
                 String histSql = "SELECT COUNT(*) AS total, "
                         + "COUNT(*) FILTER (WHERE success) AS successes "
-                        + "FROM tool_outcomes WHERE created_at >= NOW() - INTERVAL '7 days' "
+                        + "FROM tool_outcomes WHERE created_at >= NOW() - INTERVAL '" + props.getSurpriseHistoryDays() + " days' "
                         + "AND session_id != ?";
                 Object[] histParams;
                 if (toolName != null && !toolName.isBlank()) {

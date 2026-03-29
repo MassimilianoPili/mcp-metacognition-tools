@@ -13,10 +13,12 @@ public class GaussianProcessEngine {
 
     private final double lengthScale;
     private final double noiseVariance;
+    private final double minSigma2;
 
-    public GaussianProcessEngine(double lengthScale, double noiseVariance) {
+    public GaussianProcessEngine(double lengthScale, double noiseVariance, double minSigma2) {
         this.lengthScale = lengthScale;
         this.noiseVariance = noiseVariance;
+        this.minSigma2 = minSigma2;
     }
 
     /**
@@ -86,7 +88,7 @@ public class GaussianProcessEngine {
         for (int i = 0; i < n; i++) {
             sigma2 -= v[i] * v[i];
         }
-        sigma2 = Math.max(sigma2, 1e-10);
+        sigma2 = Math.max(sigma2, minSigma2);
 
         // Clamp mu to [0, 1] (quality scores are bounded)
         mu = Math.max(0.0, Math.min(1.0, mu));
